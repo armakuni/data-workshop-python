@@ -1,24 +1,23 @@
-import asyncio
-from queue import Queue
+from typing import Generator
 
 import pytest
+from pykka import ActorRef
 
-from data_workshop.actors.adding_actor import AddingActor
+from data_workshop.actors.adding_actor import AddingActor, get_total
+from tests.data_workshop.actors.actor_test_probe import wait_for_empty_inbox
 
 
-@pytest.mark.asyncio
-async def test_fetch_number() -> None:
-    inbox: "Queue[int|str]" = Queue()
-    actor_ref: "Queue[int]" = Queue()
-    actor = AddingActor(inbox, actor_ref)
+@pytest.fixture
+def actor() -> Generator[ActorRef[AddingActor], None, None]:
+    actor_ref = AddingActor.start()
+    yield actor_ref
+    actor_ref.stop()
 
-    async with asyncio.TaskGroup() as tg:
-        tg.create_task(actor.start())
-        inbox.put_nowait(123)
-        inbox.put_nowait(333)
-        inbox.put_nowait("stop")
 
-    # assert actor_ref.get() == 123
-    # actor_ref.task_done()
-    # assert actor_ref.get() == 456
-    # actor_ref.task_done()
+def test_adding(actor: ActorRef[AddingActor]) -> None:
+    actor.tell(1.0)
+    actor.tell(3.0)
+
+    wait_for_empty_inbox(actor)
+
+    assert actor.ask(get_total) == 4

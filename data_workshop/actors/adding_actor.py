@@ -1,17 +1,21 @@
-from queue import Queue
+from typing import Any
+
+import pykka
+
+get_total = "sum"
 
 
-class AddingActor:
-    def __init__(self, inbox: "Queue[int|str]", actor_ref: Queue[int]) -> None:
-        self.inbox = inbox
-        self.actor_ref = actor_ref
+class AddingActor(pykka.ThreadingActor):
+    def __init__(self) -> None:
+        super().__init__()
+        self._running_total: float = 0.0
 
-    async def start(self) -> None:
-        while True:
-            message = self.inbox.get()
-            if message == "stop":
-                self.inbox.task_done()
-                return
+    def on_receive(self, message: Any) -> None | float:
+        match message:
+            case float(new_value):
+                self._running_total += new_value
+                return None
+            case "sum":
+                return self._running_total
 
-            print("Hello, world!")
-            self.inbox.task_done()
+        return None
